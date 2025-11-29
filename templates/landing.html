@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Navigator Assist Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-3">Welcome to Navigator Assist</h1>
+
+<div class="stats">
+    <div class="stat-card">
+        <div class="stat-value">{{ total_clients }}</div>
+        <div class="stat-label">Clients</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ total_tasks }}</div>
+        <div class="stat-label">Tasks</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ total_deals }}</div>
+        <div class="stat-label">Deals</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-value">{{ total_products }}</div>
+        <div class="stat-label">Products</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2 class="h5">Quick Actions</h2>
+    <div class="btn-group d-flex flex-column mt-2" role="group" aria-label="Quick action s" style="gap:8px;">
+        <a href="/clients/" class="btn btn-primary">View Clients</a>
+        <a href="/tasks/" class="btn btn-primary">View Tasks</a>
+        <a href="/deals/" class="btn btn-primary">View Deals</a>
+        <a href="/products/" class="btn btn-primary">View Products</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+
+{% block title %}Clients - Navigator Assist{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3">Clients</h1>
+    <button class="btn btn-primary btn-sm" id="addBtn">+ Add Client</button>
+</div>
+
+<div id="modal" class="modal fade" tabindex="-1" style="display:none;">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Add Client</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="form">
+                    <input type="hidden" id="id">
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Name *</label>
+                            <input type="text" id="name" class="form-control" placeholder="Client name" required>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Email</label>
+                            <input type="email" id="email" class="form-control" placeholder="Email">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" id="phone" class="form-control" placeholder="Phone">
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Company</label>
+                            <input type="text" id="company" class="form-control" placeholder="Company">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Product</label>
+                            <select id="product" class="form-control">
+                                <option value="">-- Select Product --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Status</label>
+                            <select id="status" class="form-control">
+                                <option value="prospect">Prospect</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="converted">Converted</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Description</label>
+                        <textarea id="description" class="form-control" placeholder="Notes about client" rows="2"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Assignee</label>
+                            <input type="text" id="assignee" class="form-control" placeholder="Team member name">
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Next Step</label>
+                            <input type="text" id="next_step" class="form-control" placeholder="Follow-up action">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveBtn">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="list" class="list-group">
+    <p class="text-muted">Loading...</p>
+</div>
+
+<script>
+const API = '/api/customers/';
+const PRODUCTS_API = '/api/products/';
+let modal, selectedId = null;
+
+async function loadProducts() {
+    try {
+        const r = await fetch(PRODUCTS_API);
+        const products = await r.json();
+        const select = document.getElementById('product');
+        select.innerHTML = '<option value="">-- Select Product --</option>';
+        products.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.name;
+            option.textContent = p.name + (p.price ? ` ($${p.price})` : '');
+            select.appendChild(option);
+        });
+    } catch (e) {
+        console.log('Error loading products:', e);
+    }
+}
+
+async function load() {
+    try {
+        const r = await fetch(API);
+        const data = await r.json();
+        const list = document.getElementById('list');
+        if (!data.length) {
+            list.innerHTML = '<p class="text-muted p-3">No clients yet.</p>';
+            return;
+        }
+        list.innerHTML = data.map(c => `
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between">
+                    <div style="flex:1">
+                        <h6>${c.name}</h6>
+                        <small class="text-muted">${c.company || 'N/A'} ${c.product ? '| ' + c.product : ''}</small><br>
+                        <small>${c.email || ''} ${c.phone ? '| ' + c.phone : ''}</small><br>
+                        ${c.description ? '<small class="text-muted">' + c.description + '</small><br>' : ''}
+                        ${c.status ? '<span class="badge bg-info">' + c.status + '</span>' : ''}
+                        ${c.assignee ? '<span class="badge bg-warning">' + c.assignee + '</span>' : ''}
+                        ${c.next_step ? '<span class="badge bg-secondary">' + c.next_step + '</span>' : ''}
+                    </div>
+                    <div class="text-end">
+                        <button class="btn btn-sm btn-outline-primary" onclick="edit(${c.id})">Edit</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="del(${c.id})">Delete</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        document.getElementById('list').innerHTML = '<p class="text-danger">Error loading clients.</p>';
+    }
+}
+
+function open_modal(title) {
+    document.getElementById('modalTitle').textContent = title;
+    if (!modal) modal = new bootstrap.Modal(document.getElementById('modal'));
+    loadProducts();
+    modal.show();
+}
+
+document.getElementById('addBtn').addEventListener('click', () => {
+    selectedId = null;
+    document.getElementById('form').reset();
+    open_modal('Add Client');
+});
+
+async function edit(id) {
+    const r = await fetch(`${API}${id}/`);
+    const c = await r.json();
+    selectedId = c.id;
+    document.getElementById('id').value = c.id;
+    document.getElementById('name').value = c.name;
+    document.getElementById('email').value = c.email || '';
+    document.getElementById('phone').value = c.phone || '';
+    document.getElementById('company').value = c.company || '';
+    document.getElementById('product').value = c.product || '';
+    document.getElementById('status').value = c.status || 'prospect';
+    document.getElementById('description').value = c.description || '';
+    document.getElementById('assignee').value = c.assignee || '';
+    document.getElementById('next_step').value = c.next_step || '';
+    open_modal('Edit Client');
+}
+
+async function del(id) {
+    if (confirm('Delete this client?')) {
+        await fetch(`${API}${id}/`, { method: 'DELETE' });
+        load();
+    }
+}
+
+document.getElementById('saveBtn').addEventListener('click', async () => {
+    const name = document.getElementById('name').value.trim();
+    if (!name) return alert('Name required');
+    const payload = {
+        name,
+        email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        company: document.getElementById('company').value.trim(),
+        product: document.getElementById('product').value.trim(),
+        status: document.getElementById('status').value,
+        description: document.getElementById('description').value.trim(),
+        assignee: document.getElementById('assignee').value.trim(),
+        next_step: document.getElementById('next_step').value.trim(),
+    };
+    const method = selectedId ? 'PUT' : 'POST';
+    const url = selectedId ? `${API}${selectedId}/` : API;
+    await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    modal.hide();
+    load();
+});
+
+load();
+</script>
+{% endblock %}

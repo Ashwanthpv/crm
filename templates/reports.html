@@ -1,0 +1,317 @@
+{% extends 'base.html' %}
+
+{% block title %}Reports - Navigator Assist{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="h2">CRM Reports & Analytics</h1>
+    <p class="text-muted">Real-time metrics and key performance indicators</p>
+</div>
+
+<!-- Date Filter Form -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Filter by Date Range</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label">From Date</label>
+                <input type="date" name="from_date" class="form-control" value="{{ from_date }}" placeholder="Start date">
+            </div>
+            <div class="col-auto">
+                <label class="form-label">To Date</label>
+                <input type="date" name="to_date" class="form-control" value="{{ to_date }}" placeholder="End date">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Filter</button>
+                <a href="/reports/" class="btn btn-secondary">Clear</a>
+            </div>
+        </form>
+        {% if from_date or to_date %}
+        <div class="mt-2 alert alert-info" role="alert">
+            Showing data {% if from_date %}from {{ from_date }}{% endif %} {% if from_date and to_date %}to{% endif %} {% if to_date %}{{ to_date }}{% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Key Metrics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Total Clients</h6>
+                <h2>{{ total_clients }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Total Tasks</h6>
+                <h2>{{ total_tasks }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Total Deals</h6>
+                <h2>{{ total_deals }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Pipeline Value</h6>
+                <h2 class="text-success">{{ deal_total_value }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Tasks by Status</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="taskChart" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Clients by Status</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="customerChart" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-12 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Deal Pipeline by Status</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="dealChart" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Tables -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Recent Clients</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in recent_customers %}
+                            <tr>
+                                <td>{{ c.name }}</td>
+                                <td><span class="badge bg-info">{{ c.status }}</span></td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="2" class="text-muted">No clients</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Recent Tasks</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in recent_tasks %}
+                            <tr>
+                                <td>{{ t.title }}</td>
+                                <td><span class="badge bg-{% if t.status == 'done' %}success{% elif t.status == 'in_progress' %}warning{% else %}secondary{% endif %}">{{ t.status }}</span></td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="2" class="text-muted">No tasks</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Recent Deals</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Value</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for d in recent_deals %}
+                            <tr>
+                                <td>{{ d.title }}</td>
+                                <td>${{ d.amount|default:"0" }}</td>
+                                <td><span class="badge bg-{% if d.status == 'won' %}success{% elif d.status == 'lost' %}danger{% else %}warning{% endif %}">{{ d.status }}</span></td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-muted">No deals</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Top Products</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in top_products %}
+                            <tr>
+                                <td>{{ p.name }}</td>
+                                <td>${{ p.price|default:"0" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="2" class="text-muted">No products</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+<!-- Hidden data containers for chart data -->
+<div id="chartData" 
+     data-task-labels="{{ task_labels|safe }}"
+     data-task-counts="{{ task_counts|safe }}"
+     data-customer-labels="{{ customer_labels|safe }}"
+     data-customer-counts="{{ customer_counts|safe }}"
+     data-deal-labels="{{ deal_labels|safe }}"
+     data-deal-values="{{ deal_values|safe }}"
+     style="display:none;"></div>
+
+<script>
+// Parse data from template via data attributes
+const chartData = document.getElementById('chartData');
+const taskLabels = JSON.parse(chartData.dataset.taskLabels || '[]');
+const taskCounts = JSON.parse(chartData.dataset.taskCounts || '[]');
+const customerLabels = JSON.parse(chartData.dataset.customerLabels || '[]');
+const customerCounts = JSON.parse(chartData.dataset.customerCounts || '[]');
+const dealLabels = JSON.parse(chartData.dataset.dealLabels || '[]');
+const dealValues = JSON.parse(chartData.dataset.dealValues || '[]');
+
+// Colors
+const colors = ['#0d6efd', '#6c757d', '#198754', '#ffc107', '#dc3545', '#0dcaf0'];
+const bgColors = colors.map(c => c + '40'); // Add transparency
+
+// Task Chart
+try {
+    new Chart(document.getElementById('taskChart'), {
+        type: 'bar',
+        data: {
+            labels: taskLabels,
+            datasets: [{
+                label: 'Count',
+                data: taskCounts,
+                backgroundColor: bgColors.slice(0, taskLabels.length),
+                borderColor: colors.slice(0, taskLabels.length),
+                borderWidth: 1
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+} catch (e) { console.log('taskChart error:', e); }
+
+// Customer Chart
+try {
+    new Chart(document.getElementById('customerChart'), {
+        type: 'pie',
+        data: {
+            labels: customerLabels,
+            datasets: [{
+                data: customerCounts,
+                backgroundColor: bgColors.slice(0, customerLabels.length),
+                borderColor: colors.slice(0, customerLabels.length),
+                borderWidth: 1
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+} catch (e) { console.log('customerChart error:', e); }
+
+// Deal Chart
+try {
+    new Chart(document.getElementById('dealChart'), {
+        type: 'bar',
+        data: {
+            labels: dealLabels,
+            datasets: [{
+                label: 'Pipeline Value ($)',
+                data: dealValues,
+                backgroundColor: bgColors.slice(0, dealLabels.length),
+                borderColor: colors.slice(0, dealLabels.length),
+                borderWidth: 1
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+} catch (e) { console.log('dealChart error:', e); }
+</script>
+{% endblock %}

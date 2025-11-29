@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Products - Navigator Assist{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3">Products</h1>
+    <button class="btn btn-primary btn-sm" id="addBtn">+ Add Product</button>
+</div>
+
+<div id="modal" class="modal fade" tabindex="-1" style="display:none;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Add Product</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="form">
+                    <input type="hidden" id="id">
+                    <div class="mb-2">
+                        <input type="text" id="name" class="form-control" placeholder="Name" required>
+                    </div>
+                    <div class="mb-2">
+                        <textarea id="description" class="form-control" placeholder="Description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-2">
+                        <input type="number" id="price" class="form-control" placeholder="Price" step="0.01">
+                    </div>
+                    <div class="mb-2">
+                        <input type="text" id="sku" class="form-control" placeholder="SKU">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-check">
+                            <input type="checkbox" id="in_stock" class="form-check-input">
+                            <span class="form-check-label">In Stock</span>
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveBtn">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="list" class="list-group">
+    <p class="text-muted">Loading...</p>
+</div>
+
+<script>
+const API = '/api/products/';
+let modal, selectedId = null;
+
+async function load() {
+    try {
+        const r = await fetch(API);
+        const data = await r.json();
+        const list = document.getElementById('list');
+        if (!data.length) {
+            list.innerHTML = '<p class="text-muted p-3">No products yet.</p>';
+            return;
+        }
+        list.innerHTML = data.map(p => `
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6>${p.name}</h6>
+                        <small class="text-muted">${p.description || 'N/A'}</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-${p.in_stock ? 'success' : 'danger'}">${p.in_stock ? 'In Stock' : 'Out'}</span>
+                        <button class="btn btn-sm btn-outline-primary" onclick="edit(${p.id})">Edit</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="del(${p.id})">Delete</button>
+                    </div>
+                </div>
+                <small><strong>$${p.price || 0}</strong> | SKU: ${p.sku || 'N/A'}</small>
+            </div>
+        `).join('');
+    } catch (e) {
+        document.getElementById('list').innerHTML = '<p class="text-danger">Error loading products.</p>';
+    }
+}
+
+function open_modal(title) {
+    document.getElementById('modalTitle').textContent = title;
+    if (!modal) modal = new bootstrap.Modal(document.getElementById('modal'));
+    modal.show();
+}
+
+document.getElementById('addBtn').addEventListener('click', () => {
+    selectedId = null;
+    document.getElementById('form').reset();
+    open_modal('Add Product');
+});
+
+async function edit(id) {
+    const r = await fetch(`${API}${id}/`);
+    const p = await r.json();
+    selectedId = p.id;
+    document.getElementById('id').value = p.id;
+    document.getElementById('name').value = p.name;
+    document.getElementById('description').value = p.description || '';
+    document.getElementById('price').value = p.price || '';
+    document.getElementById('sku').value = p.sku || '';
+    document.getElementById('in_stock').checked = p.in_stock;
+    open_modal('Edit Product');
+}
+
+async function del(id) {
+    if (confirm('Delete this product?')) {
+        await fetch(`${API}${id}/`, { method: 'DELETE' });
+        load();
+    }
+}
+
+document.getElementById('saveBtn').addEventListener('click', async () => {
+    const name = document.getElementById('name').value.trim();
+    if (!name) return alert('Name required');
+    const payload = {
+        name,
+        description: document.getElementById('description').value.trim(),
+        price: document.getElementById('price').value || null,
+        sku: document.getElementById('sku').value.trim() || '',
+        in_stock: document.getElementById('in_stock').checked,
+    };
+    const method = selectedId ? 'PUT' : 'POST';
+    const url = selectedId ? `${API}${selectedId}/` : API;
+    await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    modal.hide();
+    load();
+});
+
+load();
+</script>
+{% endblock %}

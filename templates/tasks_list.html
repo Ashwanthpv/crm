@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}Tasks - Navigator Assist{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3">Tasks</h1>
+    <button class="btn btn-primary btn-sm" id="addBtn">+ Add Task</button>
+</div>
+
+<div id="modal" class="modal fade" tabindex="-1" style="display:none;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Add Task</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="form">
+                    <input type="hidden" id="id">
+                    <div class="mb-2">
+                        <input type="text" id="title" class="form-control" placeholder="Title" required>
+                    </div>
+                    <div class="mb-2">
+                        <textarea id="description" class="form-control" placeholder="Description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-2">
+                        <select id="customer" class="form-control">
+                            <option value="">-- No Client --</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <select id="status" class="form-control">
+                            <option value="todo">To Do</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="done">Done</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <input type="date" id="due_date" class="form-control" placeholder="Due Date">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveBtn">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="list" class="list-group">
+    <p class="text-muted">Loading...</p>
+</div>
+
+<script>
+const API = '/api/tasks/';
+const CUSTOMERS_API = '/api/customers/';
+let modal, selectedId = null;
+
+async function loadCustomers() {
+    const r = await fetch(CUSTOMERS_API);
+    const data = await r.json();
+    const sel = document.getElementById('customer');
+    sel.innerHTML = '<option value="">-- No Client --</option>' + data.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+async function load() {
+    try {
+        const r = await fetch(API);
+        const data = await r.json();
+        const list = document.getElementById('list');
+        if (!data.length) {
+            list.innerHTML = '<p class="text-muted p-3">No tasks yet.</p>';
+            return;
+        }
+        list.innerHTML = data.map(t => `
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6>${t.title}</h6>
+                        <small class="text-muted">${t.description || 'N/A'}</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-${t.status === 'done' ? 'success' : t.status === 'in_progress' ? 'warning' : 'secondary'}">${t.status}</span>
+                        <button class="btn btn-sm btn-outline-primary" onclick="edit(${t.id})">Edit</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="del(${t.id})">Delete</button>
+                    </div>
+                </div>
+                <small>Due: ${t.due_date || 'N/A'}</small>
+            </div>
+        `).join('');
+    } catch (e) {
+        document.getElementById('list').innerHTML = '<p class="text-danger">Error loading tasks.</p>';
+    }
+}
+
+function open_modal(title) {
+    document.getElementById('modalTitle').textContent = title;
+    if (!modal) modal = new bootstrap.Modal(document.getElementById('modal'));
+    modal.show();
+}
+
+document.getElementById('addBtn').addEventListener('click', () => {
+    selectedId = null;
+    document.getElementById('form').reset();
+    open_modal('Add Task');
+});
+
+async function edit(id) {
+    const r = await fetch(`${API}${id}/`);
+    const t = await r.json();
+    selectedId = t.id;
+    document.getElementById('id').value = t.id;
+    document.getElementById('title').value = t.title;
+    document.getElementById('description').value = t.description || '';
+    document.getElementById('customer').value = t.customer || '';
+    document.getElementById('status').value = t.status;
+    document.getElementById('due_date').value = t.due_date || '';
+    open_modal('Edit Task');
+}
+
+async function del(id) {
+    if (confirm('Delete this task?')) {
+        await fetch(`${API}${id}/`, { method: 'DELETE' });
+        load();
+    }
+}
+
+document.getElementById('saveBtn').addEventListener('click', async () => {
+    const title = document.getElementById('title').value.trim();
+    if (!title) return alert('Title required');
+    const payload = {
+        title,
+        description: document.getElementById('description').value.trim(),
+        customer: document.getElementById('customer').value || null,
+        status: document.getElementById('status').value,
+        due_date: document.getElementById('due_date').value || null,
+    };
+    const method = selectedId ? 'PUT' : 'POST';
+    const url = selectedId ? `${API}${selectedId}/` : API;
+    await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    modal.hide();
+    load();
+});
+
+loadCustomers();
+load();
+</script>
+{% endblock %}
